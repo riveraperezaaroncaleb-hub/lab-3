@@ -10,6 +10,12 @@ db.pragma('foreign_keys = ON');
 
 export function initializeDatabase() {
   db.exec(fs.readFileSync(path.join(root, 'sql', 'schema.sql'), 'utf8'));
+
+  const declarationColumns = db.prepare('PRAGMA table_info(declaracion)').all().map((column) => column.name);
+  if (!declarationColumns.includes('regimen')) {
+    db.exec("ALTER TABLE declaracion ADD COLUMN regimen TEXT NOT NULL DEFAULT 'Importación'");
+  }
+
   db.exec(fs.readFileSync(path.join(root, 'sql', 'seed.sql'), 'utf8'));
 }
 

@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "Agente IA - Inventario Aduanero (solo lectura)",
   "nodes": [
     {
@@ -12,7 +12,10 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-460, 0],
+      "position": [
+        -460,
+        0
+      ],
       "webhookId": "aduana-chat"
     },
     {
@@ -23,21 +26,27 @@
       "name": "Chat Trigger",
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.2,
-      "position": [-460, 200]
+      "position": [
+        -460,
+        200
+      ]
     },
     {
       "parameters": {
         "promptType": "define",
         "text": "={{ $json.body?.chatInput ?? $json.chatInput ?? $json.input }}",
         "options": {
-          "systemMessage": "Eres el asistente de consulta de la Aduana Nacional. Responde siempre en español, de forma clara y concisa, basándote únicamente en los datos que devuelva la herramienta SQL.\n\nANTES de responder cualquier pregunta sobre datos, invoca la herramienta «Consulta SQL» con una única sentencia SQLite SELECT (o WITH … SELECT). NUNCA generes ni sugieras INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, PRAGMA, ATTACH, DETACH ni sentencias múltiples separadas por punto y coma. Agrega LIMIT 50 cuando el resultado pueda tener muchas filas.\n\nESQUEMA DE LA BASE DE DATOS:\n- pais(id, nombre, codigo_iso, continente)\n- aduana(id, codigo, nombre, ciudad, id_pais)\n- empresa(id, nombre, nit, tipo, id_pais)  — tipo: Importador | Exportador | Transportista\n- categoria(id, nombre)\n- producto(id, codigo, nombre, id_categoria, precio_unitario_usd, unidad_medida, requiere_licencia)\n- declaracion(id, numero, fecha, regimen, estado, id_pais_origen, id_empresa, id_aduana, valor_fob_usd, flete_usd, seguro_usd)  — regimen: Importación|Exportación|Tránsito  — estado: Recibida|En inspección|Retenida|Liberada\n- detalle_declaracion(id, id_declaracion, id_producto, cantidad, precio_unitario_usd, subtotal_usd)\n- inspector(id, nombre, documento, turno, id_aduana)\n- inspeccion(id, id_declaracion, id_inspector, fecha, resultado, observaciones)  — resultado: Aprobada|Observada|Rechazada|Pendiente\n- almacen(id, codigo, nombre, id_aduana, capacidad_m3)\n- stock(id, id_producto, id_almacen, cantidad, fecha_ingreso)\n- tributo(id, id_declaracion, concepto, monto_usd, fecha_pago, estado)  — concepto: Arancel|IVA|ICE|Tasa de servicio  — estado: Pendiente|Pagado\n\nRELACIONES CLAVE:\n- declaracion → empresa (id_empresa), pais (id_pais_origen), aduana (id_aduana)\n- detalle_declaracion → declaracion, producto\n- stock → producto, almacen\n- almacen → aduana\n- inspeccion → declaracion, inspector\n- tributo → declaracion\n\nCONSEJOS SQL:\n- Usa ROUND(valor, 2) para montos en USD.\n- Usa strftime('%Y-%m', fecha) para agrupar por mes.\n- Para buscar la bodega de una mercancía: JOIN detalle_declaracion → producto → stock → almacen.\n- Si la herramienta no devuelve filas, responde que no hay datos; nunca inventes información."
+          "systemMessage": "Eres el asistente de consulta de la Aduana Nacional. Responde siempre en español, de forma clara y concisa, basándote únicamente en los datos que devuelva la herramienta SQL.\n\nANTES de responder cualquier pregunta sobre datos, invoca la herramienta \"Consulta SQL\" con una única sentencia SQLite SELECT (o WITH ... SELECT). NUNCA generes ni sugieras INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, PRAGMA, ATTACH, DETACH ni sentencias múltiples separadas por punto y coma. Agrega LIMIT 50 cuando el resultado pueda tener muchas filas.\n\nESQUEMA DE LA BASE DE DATOS:\n- pais(id, nombre, codigo_iso)\n- importador(id, nombre, nit, telefono, correo)\n- producto(id, descripcion, unidad, valor_unitario, arancel)\n- bodega(id, nombre, ubicacion, capacidad)\n- declaracion(id, numero, fecha, regimen, estado, id_importador, id_pais)  - regimen: Importación|Exportación|Tránsito  - estado: RECIBIDA|EN_INSPECCION|RETENIDA|LIBERADA\n- detalle_declaracion(id_declaracion, id_producto, cantidad, valor)\n- inspeccion(id, fecha, resultado, observaciones, id_declaracion)  - resultado: APROBADA|OBSERVADA|RECHAZADA|PENDIENTE\n- inventario(id_bodega, id_producto, cantidad, fecha_ingreso, estado)  - estado: RECIBIDA|EN_INSPECCION|RETENIDA|LIBERADA\n\nRELACIONES CLAVE:\n- declaracion -> importador (id_importador), pais (id_pais)\n- detalle_declaracion -> declaracion, producto\n- inventario -> bodega, producto\n- inspeccion -> declaracion\n\nCONSEJOS SQL:\n- Usa ROUND(valor, 2) para montos.\n- Usa strftime('%Y-%m', fecha) para agrupar por mes.\n- Para buscar la bodega de una mercancía: JOIN detalle_declaracion -> producto -> inventario -> bodega.\n- Los estados se guardan en mayúsculas y con guion bajo (EN_INSPECCION).\n- Si la herramienta no devuelve filas, responde que no hay datos; nunca inventes información."
         }
       },
       "id": "node-aiagent-003",
       "name": "AI Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
@@ -49,7 +58,10 @@
       "name": "Simple Memory",
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
-      "position": [60, 220]
+      "position": [
+        60,
+        220
+      ]
     },
     {
       "parameters": {
@@ -60,7 +72,10 @@
       "name": "DeepSeek Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
       "typeVersion": 1,
-      "position": [-160, 220],
+      "position": [
+        -160,
+        220
+      ],
       "credentials": {
         "deepSeekApi": {
           "id": "REEMPLAZAR_CON_TU_ID",
@@ -82,7 +97,10 @@
       "name": "Consulta SQL",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
-      "position": [260, 220]
+      "position": [
+        260,
+        220
+      ]
     },
     {
       "parameters": {
@@ -91,8 +109,14 @@
         "options": {
           "responseHeaders": {
             "entries": [
-              { "name": "Content-Type", "value": "application/json" },
-              { "name": "Access-Control-Allow-Origin", "value": "*" }
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
             ]
           }
         }
@@ -101,32 +125,87 @@
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [400, 0]
+      "position": [
+        400,
+        0
+      ]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{ "node": "AI Agent", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Chat Trigger": {
-      "main": [[{ "node": "AI Agent", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "AI Agent": {
-      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DeepSeek Chat Model": {
-      "ai_languageModel": [[{ "node": "AI Agent", "type": "ai_languageModel", "index": 0 }]]
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Simple Memory": {
-      "ai_memory": [[{ "node": "AI Agent", "type": "ai_memory", "index": 0 }]]
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Consulta SQL": {
-      "ai_tool": [[{ "node": "AI Agent", "type": "ai_tool", "index": 0 }]]
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "versionId": "aduana-v3-fixed-2026",
-  "meta": { "templateCredsSetupCompleted": false },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
   "tags": []
 }

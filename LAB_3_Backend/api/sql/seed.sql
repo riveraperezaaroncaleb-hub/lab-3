@@ -11,10 +11,10 @@ INSERT OR IGNORE INTO producto (id, descripcion, unidad, valor_unitario, arancel
 INSERT OR IGNORE INTO bodega (id, nombre, ubicacion, capacidad) VALUES
   (1, 'Bodega 1', 'Terminal Norte', 5000), (2, 'Bodega 2', 'Terminal Central', 8000),
   (3, 'Bodega 3', 'Terminal Sur', 3500);
-INSERT OR IGNORE INTO declaracion (id, numero, fecha, estado, id_importador, id_pais) VALUES
-  (1, 'DUA-2026-0841', '2026-10-22', 'RETENIDA', 1, 1),
-  (2, 'DUA-2026-0839', '2026-10-22', 'EN_INSPECCION', 2, 4),
-  (3, 'DUA-2026-0832', '2026-10-21', 'LIBERADA', 1, 2);
+INSERT OR IGNORE INTO declaracion (id, numero, fecha, regimen, estado, id_importador, id_pais) VALUES
+  (1, 'DUA-2026-0841', '2026-10-22', 'Importación', 'RETENIDA', 1, 1),
+  (2, 'DUA-2026-0839', '2026-10-22', 'Importación', 'EN_INSPECCION', 2, 4),
+  (3, 'DUA-2026-0832', '2026-10-21', 'Exportación', 'LIBERADA', 1, 2);
 INSERT OR IGNORE INTO detalle_declaracion (id_declaracion, id_producto, cantidad, valor) VALUES
   (1, 1, 100, 48500), (2, 2, 986, 18241), (3, 3, 100, 73800), (1, 4, 100, 26100);
 INSERT OR IGNORE INTO inspeccion (id, fecha, resultado, observaciones, id_declaracion) VALUES

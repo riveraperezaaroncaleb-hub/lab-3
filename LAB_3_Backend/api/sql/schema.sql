@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS declaracion (
   id INTEGER PRIMARY KEY,
   numero TEXT NOT NULL UNIQUE,
   fecha TEXT NOT NULL,
+  regimen TEXT NOT NULL DEFAULT 'Importación' CHECK (regimen IN ('Importación', 'Exportación', 'Tránsito')),
   estado TEXT NOT NULL CHECK (estado IN ('RECIBIDA', 'EN_INSPECCION', 'RETENIDA', 'LIBERADA')),
   id_importador INTEGER NOT NULL,
   id_pais INTEGER NOT NULL,

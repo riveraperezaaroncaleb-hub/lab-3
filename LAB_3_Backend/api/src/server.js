@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { initializeDatabase } from './database.js';
 import db from './database.js';
-import agentDb from './agentDatabase.js';
 
 dotenv.config();
 initializeDatabase();
@@ -31,6 +30,16 @@ function errorResponse(res, error) {
     : error.message.includes('FOREIGN KEY') ? 'No existe el registro relacionado.' : error.message;
   return res.status(400).json({ error: message });
 }
+
+const ESTADOS_DB = {
+  'Recibida': 'RECIBIDA',
+  'En inspección': 'EN_INSPECCION',
+  'Retenida': 'RETENIDA',
+  'Liberada': 'LIBERADA',
+};
+const ESTADOS_UI = Object.fromEntries(Object.entries(ESTADOS_DB).map(([ui, database]) => [database, ui]));
+const toDbEstado = (estado) => ESTADOS_DB[estado] || String(estado).toUpperCase().replaceAll(' ', '_');
+const toUiEstado = (estado) => ESTADOS_UI[estado] || estado;
 
 for (const [route, { table, columns }] of Object.entries(resources)) {
   app.get(`/api/${route}`, (_req, res) => res.json(db.prepare(`SELECT * FROM ${table} ORDER BY id DESC`).all()));
@@ -87,7 +96,7 @@ app.post('/api/consultas/sql', (req, res) => {
     return res.status(400).json({ error: 'Solo se permite una consulta SELECT de lectura, sin punto y coma.' });
   }
   try {
-    const rows = agentDb.prepare(sql).all();
+    const rows = db.prepare(sql).all();
     return res.json({ rows, count: rows.length });
   } catch (error) {
     return res.status(400).json({ error: `Consulta no válida: ${error.message}` });
@@ -97,11 +106,11 @@ app.post('/api/consultas/sql', (req, res) => {
 // Operación del frontend: datos reales de la base del laboratorio.
 app.get('/api/operacion/catalogos', (_req, res) => {
   res.json({
-    paises: agentDb.prepare('SELECT id, nombre FROM pais ORDER BY nombre').all(),
-    empresas: agentDb.prepare("SELECT id, nombre FROM empresa WHERE tipo IN ('Importador','Exportador') ORDER BY nombre").all(),
-    aduanas: agentDb.prepare('SELECT id, codigo, nombre, ciudad FROM aduana ORDER BY nombre').all(),
-    productos: agentDb.prepare('SELECT id, codigo, nombre, precio_unitario_usd, unidad_medida FROM producto ORDER BY nombre').all(),
-    almacenes: agentDb.prepare('SELECT id, codigo, nombre FROM almacen ORDER BY nombre').all(),
+    paises: db.prepare('SELECT id, nombre FROM pais ORDER BY nombre').all(),
+    empresas: db.prepare('SELECT id, nombre FROM importador ORDER BY nombre').all(),
+    productos: db.prepare(`SELECT id, descripcion AS nombre, valor_unitario AS precio_unitario_usd, unidad AS unidad_medida
+      FROM producto ORDER BY descripcion`).all(),
+    almacenes: db.prepare('SELECT id, nombre FROM bodega ORDER BY nombre').all(),
   });
 });
 
@@ -109,39 +118,46 @@ app.get('/api/operacion/declaraciones', (req, res) => {
   const { regimen, estado } = req.query;
   const conditions = []; const params = [];
   if (regimen) { conditions.push('d.regimen = ?'); params.push(regimen); }
-  if (estado) { conditions.push('d.estado = ?'); params.push(estado); }
+  if (estado) { conditions.push('d.estado = ?'); params.push(toDbEstado(estado)); }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  const rows = agentDb.prepare(`SELECT d.*, e.nombre AS empresa, p.nombre AS pais_origen, a.nombre AS aduana,
-      GROUP_CONCAT(pr.nombre, ', ') AS mercancias
+  const rows = db.prepare(`SELECT d.id, d.numero, d.fecha, d.regimen, d.estado,
+      i.nombre AS empresa, p.nombre AS pais_origen,
+      GROUP_CONCAT(pr.descripcion, ', ') AS mercancias
     FROM declaracion d
-    JOIN empresa e ON e.id=d.id_empresa JOIN pais p ON p.id=d.id_pais_origen JOIN aduana a ON a.id=d.id_aduana
-    LEFT JOIN detalle_declaracion dd ON dd.id_declaracion=d.id LEFT JOIN producto pr ON pr.id=dd.id_producto
+    JOIN importador i ON i.id=d.id_importador
+    JOIN pais p ON p.id=d.id_pais
+    LEFT JOIN detalle_declaracion dd ON dd.id_declaracion=d.id
+    LEFT JOIN producto pr ON pr.id=dd.id_producto
     ${where} GROUP BY d.id ORDER BY d.fecha DESC, d.id DESC`).all(...params);
-  res.json(rows);
+  res.json(rows.map((row) => ({ ...row, estado: toUiEstado(row.estado) })));
 });
 
 app.post('/api/operacion/declaraciones', (req, res) => {
-  const { numero, fecha, regimen, estado = 'Recibida', id_pais_origen, id_empresa, id_aduana, id_producto, cantidad, id_almacen } = req.body;
-  if (!numero || !fecha || !regimen || !id_pais_origen || !id_empresa || !id_aduana || !id_producto || !cantidad || !id_almacen) {
+  const { numero, fecha, regimen = 'Importación', estado = 'Recibida', id_pais_origen, id_empresa, id_producto, cantidad, id_almacen } = req.body;
+  if (!numero || !fecha || !regimen || !id_pais_origen || !id_empresa || !id_producto || !cantidad || !id_almacen) {
     return res.status(400).json({ error: 'Completa todos los campos obligatorios.' });
   }
   try {
-    const createDeclaration = agentDb.transaction(() => {
-      const product = agentDb.prepare('SELECT precio_unitario_usd FROM producto WHERE id = ?').get(id_producto);
+    const createDeclaration = db.transaction(() => {
+      const product = db.prepare('SELECT valor_unitario FROM producto WHERE id = ?').get(id_producto);
       if (!product) throw new Error('El producto seleccionado no existe.');
-      const subtotal = Number(product.precio_unitario_usd) * Number(cantidad);
-      const declaration = agentDb.prepare(`INSERT INTO declaracion
-        (numero, fecha, regimen, estado, id_pais_origen, id_empresa, id_aduana, valor_fob_usd, flete_usd, seguro_usd)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0)`).run(numero, fecha, regimen, estado, id_pais_origen, id_empresa, id_aduana, subtotal);
-      agentDb.prepare('INSERT INTO detalle_declaracion (id_declaracion, id_producto, cantidad, precio_unitario_usd, subtotal_usd) VALUES (?, ?, ?, ?, ?)')
-        .run(declaration.lastInsertRowid, id_producto, cantidad, product.precio_unitario_usd, subtotal);
-      agentDb.prepare(`INSERT INTO stock (id_producto, id_almacen, cantidad, fecha_ingreso) VALUES (?, ?, ?, ?)
-        ON CONFLICT(id_producto, id_almacen) DO UPDATE SET cantidad = stock.cantidad + excluded.cantidad, fecha_ingreso = excluded.fecha_ingreso`)
-        .run(id_producto, id_almacen, cantidad, fecha);
+      const subtotal = Number(product.valor_unitario) * Number(cantidad);
+      const dbEstado = toDbEstado(estado);
+      const declaration = db.prepare(`INSERT INTO declaracion
+        (numero, fecha, regimen, estado, id_importador, id_pais)
+        VALUES (?, ?, ?, ?, ?, ?)`).run(numero, fecha, regimen, dbEstado, id_empresa, id_pais_origen);
+      db.prepare('INSERT INTO detalle_declaracion (id_declaracion, id_producto, cantidad, valor) VALUES (?, ?, ?, ?)')
+        .run(declaration.lastInsertRowid, id_producto, cantidad, subtotal);
+      db.prepare(`INSERT INTO inventario (id_bodega, id_producto, cantidad, fecha_ingreso, estado) VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(id_bodega, id_producto) DO UPDATE SET cantidad = inventario.cantidad + excluded.cantidad,
+          fecha_ingreso = excluded.fecha_ingreso, estado = excluded.estado`)
+        .run(id_almacen, id_producto, cantidad, fecha, dbEstado);
       return declaration.lastInsertRowid;
     });
     const id = createDeclaration();
-    return res.status(201).json(agentDb.prepare('SELECT * FROM declaracion WHERE id = ?').get(id));
+    const row = db.prepare(`SELECT d.*, i.nombre AS empresa, p.nombre AS pais_origen
+      FROM declaracion d JOIN importador i ON i.id=d.id_importador JOIN pais p ON p.id=d.id_pais WHERE d.id = ?`).get(id);
+    return res.status(201).json({ ...row, estado: toUiEstado(row.estado) });
   } catch (error) { return errorResponse(res, error); }
 });
 
@@ -149,16 +165,18 @@ app.patch('/api/operacion/declaraciones/:id/estado', (req, res) => {
   const { estado } = req.body;
   const allowed = ['Recibida', 'En inspección', 'Retenida', 'Liberada'];
   if (!allowed.includes(estado)) return res.status(400).json({ error: 'Estado no válido.' });
-  const result = agentDb.prepare('UPDATE declaracion SET estado = ? WHERE id = ?').run(estado, req.params.id);
-  return result.changes ? res.json(agentDb.prepare('SELECT * FROM declaracion WHERE id = ?').get(req.params.id)) : res.status(404).json({ error: 'Declaración no encontrada.' });
+  const dbEstado = toDbEstado(estado);
+  const result = db.prepare('UPDATE declaracion SET estado = ? WHERE id = ?').run(dbEstado, req.params.id);
+  if (!result.changes) return res.status(404).json({ error: 'Declaración no encontrada.' });
+  return res.json({ ...db.prepare('SELECT * FROM declaracion WHERE id = ?').get(req.params.id), estado });
 });
 
 app.get('/api/operacion/resumen', (_req, res) => {
-  const summary = agentDb.prepare(`SELECT
+  const summary = db.prepare(`SELECT
       COUNT(*) AS total_declaraciones,
       SUM(CASE WHEN regimen='Importación' THEN 1 ELSE 0 END) AS ingresos,
       SUM(CASE WHEN regimen='Exportación' THEN 1 ELSE 0 END) AS salidas,
-      SUM(CASE WHEN estado='Retenida' THEN 1 ELSE 0 END) AS retenidas
+      SUM(CASE WHEN estado='RETENIDA' THEN 1 ELSE 0 END) AS retenidas
     FROM declaracion`).get();
   res.json(summary);
 });

@@ -6,24 +6,20 @@ Antes de responder una pregunta de datos, usa la herramienta con una única cons
 
 Esquema disponible:
 
-- `pais(id, nombre, codigo_iso, continente)`
-- `aduana(id, codigo, nombre, ciudad, id_pais)`
-- `empresa(id, nombre, nit, tipo, id_pais)`; tipo: Importador, Exportador, Transportista.
-- `categoria(id, nombre)`
-- `producto(id, codigo, nombre, id_categoria, precio_unitario_usd, unidad_medida, requiere_licencia)`
-- `declaracion(id, numero, fecha, regimen, estado, id_pais_origen, id_empresa, id_aduana, valor_fob_usd, flete_usd, seguro_usd)`; estados: Recibida, En inspección, Retenida, Liberada.
-- `detalle_declaracion(id, id_declaracion, id_producto, cantidad, precio_unitario_usd, subtotal_usd)`
-- `inspector(id, nombre, documento, turno, id_aduana)`
-- `inspeccion(id, id_declaracion, id_inspector, fecha, resultado, observaciones)`; resultados: Aprobada, Observada, Rechazada, Pendiente.
-- `almacen(id, codigo, nombre, id_aduana, capacidad_m3)`
-- `stock(id, id_producto, id_almacen, cantidad, fecha_ingreso)`
-- `tributo(id, id_declaracion, concepto, monto_usd, fecha_pago, estado)`; estado: Pendiente, Pagado.
+- `pais(id, nombre, codigo_iso)`
+- `importador(id, nombre, nit, telefono, correo)`
+- `producto(id, descripcion, unidad, valor_unitario, arancel)`
+- `bodega(id, nombre, ubicacion, capacidad)`
+- `declaracion(id, numero, fecha, regimen, estado, id_importador, id_pais)`; regimen: Importación, Exportación, Tránsito; estado: RECIBIDA, EN_INSPECCION, RETENIDA, LIBERADA.
+- `detalle_declaracion(id_declaracion, id_producto, cantidad, valor)`
+- `inspeccion(id, fecha, resultado, observaciones, id_declaracion)`; resultado: APROBADA, OBSERVADA, RECHAZADA, PENDIENTE.
+- `inventario(id_bodega, id_producto, cantidad, fecha_ingreso, estado)`; estado: RECIBIDA, EN_INSPECCION, RETENIDA, LIBERADA.
 
 Relaciones importantes:
 
-- Una declaración pertenece a un país de origen, empresa y aduana.
+- Una declaración pertenece a un importador y a un país de origen.
 - Sus mercancías se obtienen con `detalle_declaracion` y `producto`.
-- La bodega se obtiene con `stock`, `almacen` y `producto`.
-- La inspección une una declaración con un inspector.
+- La bodega se obtiene con `inventario`, `bodega` y `producto`.
+- La inspección pertenece a una declaración.
 
-Usa `ROUND(valor, 2)` para montos y `strftime('%Y-%m', fecha)` para preguntas mensuales. Si la herramienta no devuelve filas, indícalo sin inventar datos.
+Usa `ROUND(valor, 2)` para montos y `strftime('%Y-%m', fecha)` para preguntas mensuales. Los estados se guardan en mayúsculas y con guion bajo (`EN_INSPECCION`). Si la herramienta no devuelve filas, indícalo sin inventar datos.

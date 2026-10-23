@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 
 const API_URL = 'http://127.0.0.1:4000/api/operacion'
 const N8N_AGENT_URL = import.meta.env.VITE_N8N_AGENT_URL
-const initialForm = { numero: '', fecha: new Date().toISOString().slice(0, 10), regimen: 'Importación', estado: 'Recibida', id_pais_origen: '', id_empresa: '', id_aduana: '', id_producto: '', cantidad: 1, id_almacen: '' }
+const initialForm = { numero: '', fecha: new Date().toISOString().slice(0, 10), regimen: 'Importación', estado: 'Recibida', id_pais_origen: '', id_empresa: '', id_producto: '', cantidad: 1, id_almacen: '' }
 
 function Status({ value }) { return <span className={`status status--${value.toLowerCase().replaceAll(' ', '-').normalize('NFD').replace(/[\u0300-\u036f]/g, '')}`}>{value}</span> }
 
 function App() {
   const [section, setSection] = useState('resumen')
-  const [catalogs, setCatalogs] = useState({ paises: [], empresas: [], aduanas: [], productos: [], almacenes: [] })
+  const [catalogs, setCatalogs] = useState({ paises: [], empresas: [], productos: [], almacenes: [] })
   const [declarations, setDeclarations] = useState([])
   const [summary, setSummary] = useState({ total_declaraciones: 0, ingresos: 0, salidas: 0, retenidas: 0 })
   const [filter, setFilter] = useState('Todas')
@@ -42,7 +42,7 @@ function App() {
   async function submitDeclaration(event) {
     event.preventDefault(); setSaving(true); setMessage('')
     try {
-      const response = await fetch(`${API_URL}/declaraciones`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, cantidad: Number(form.cantidad), id_pais_origen: Number(form.id_pais_origen), id_empresa: Number(form.id_empresa), id_aduana: Number(form.id_aduana), id_producto: Number(form.id_producto), id_almacen: Number(form.id_almacen) }) })
+      const response = await fetch(`${API_URL}/declaraciones`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, cantidad: Number(form.cantidad), id_pais_origen: Number(form.id_pais_origen), id_empresa: Number(form.id_empresa), id_producto: Number(form.id_producto), id_almacen: Number(form.id_almacen) }) })
       const data = await response.json(); if (!response.ok) throw new Error(data.error || 'No se pudo registrar la mercancía.')
       setModalOpen(false); setForm(initialForm); setMessage(`Mercancía registrada con la declaración ${data.numero}.`); await loadData()
     } catch (error) { setMessage(error.message) } finally { setSaving(false) }
@@ -106,7 +106,6 @@ function App() {
       <label>Estado<select name="estado" value={form.estado} onChange={updateForm}><option>Recibida</option><option>En inspección</option><option>Retenida</option><option>Liberada</option></select></label>
       <Select label="País de origen" name="id_pais_origen" value={form.id_pais_origen} onChange={updateForm} items={catalogs.paises} />
       <Select label="Empresa" name="id_empresa" value={form.id_empresa} onChange={updateForm} items={catalogs.empresas} />
-      <Select label="Aduana" name="id_aduana" value={form.id_aduana} onChange={updateForm} items={catalogs.aduanas} labelKey="nombre" />
       <Select label="Mercancía" name="id_producto" value={form.id_producto} onChange={updateForm} items={catalogs.productos} labelKey="nombre" />
       <label>Cantidad<input required min="0.01" step="0.01" type="number" name="cantidad" value={form.cantidad} onChange={updateForm} /></label>
       <Select label="Bodega" name="id_almacen" value={form.id_almacen} onChange={updateForm} items={catalogs.almacenes} labelKey="nombre" />
