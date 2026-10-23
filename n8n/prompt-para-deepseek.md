@@ -38,20 +38,16 @@ Respuesta esperada:
 
 ## Esquema SQLite que el agente puede consultar
 
-- pais(id, nombre, codigo_iso, continente)
-- aduana(id, codigo, nombre, ciudad, id_pais)
-- empresa(id, nombre, nit, tipo, id_pais)
-- categoria(id, nombre)
-- producto(id, codigo, nombre, id_categoria, precio_unitario_usd, unidad_medida, requiere_licencia)
-- declaracion(id, numero, fecha, regimen, estado, id_pais_origen, id_empresa, id_aduana, valor_fob_usd, flete_usd, seguro_usd)
-- detalle_declaracion(id, id_declaracion, id_producto, cantidad, precio_unitario_usd, subtotal_usd)
-- inspector(id, nombre, documento, turno, id_aduana)
-- inspeccion(id, id_declaracion, id_inspector, fecha, resultado, observaciones)
-- almacen(id, codigo, nombre, id_aduana, capacidad_m3)
-- stock(id, id_producto, id_almacen, cantidad, fecha_ingreso)
-- tributo(id, id_declaracion, concepto, monto_usd, fecha_pago, estado)
+- pais(id, nombre, codigo_iso)
+- importador(id, nombre, nit, telefono, correo)
+- producto(id, descripcion, unidad, valor_unitario, arancel)
+- bodega(id, nombre, ubicacion, capacidad)
+- declaracion(id, numero, fecha, regimen, estado, id_importador, id_pais)
+- detalle_declaracion(id_declaracion, id_producto, cantidad, valor)
+- inspeccion(id, fecha, resultado, observaciones, id_declaracion)
+- inventario(id_bodega, id_producto, cantidad, fecha_ingreso, estado)
 
-Relaciones: declaración → país/empresa/aduana; detalle_declaracion → declaración/producto; stock → producto/almacen; inspeccion → declaración/inspector.
+Relaciones: declaración → importador/país; detalle_declaracion → declaración/producto; inventario → bodega/producto; inspeccion → declaración. Los estados se guardan en mayúsculas: RECIBIDA, EN_INSPECCION, RETENIDA, LIBERADA.
 
 ## Prompt de sistema obligatorio dentro del AI Agent
 

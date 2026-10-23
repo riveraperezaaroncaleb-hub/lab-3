@@ -26,7 +26,7 @@ Toma una captura de cada respuesta del chat para estas ocho pruebas:
 2. ¿Qué mercancías siguen retenidas y en qué bodega están?
 3. ¿Cuál es el país de origen con más declaraciones recibidas?
 4. ¿Qué importador ha declarado el mayor valor total en mercancías?
-5. ¿Qué inspecciones tuvieron resultado Observada y quién las realizó?
-6. ¿Cuánto stock queda de Microprocesadores en todas las bodegas?
-7. ¿Cuánto se ha pagado y cuánto queda pendiente por tributos?
+5. ¿Qué inspecciones tuvieron resultado OBSERVADA?
+6. ¿Cuánta cantidad de cada producto hay en las bodegas?
+7. ¿Qué declaraciones están retenidas por importador?
 8. ¿Cuántas declaraciones hubo por mes y régimen durante 2026?
